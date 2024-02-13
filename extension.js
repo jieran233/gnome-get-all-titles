@@ -18,32 +18,32 @@
 
 import Gio from 'gi://Gio';
 
-const ActivateWindowByTitleInterface = `
+const GetAllTitlesOfWindowsInterface = `
 <node>
-  <interface name="de.lucaswerkmeister.ActivateWindowByTitle">
-    <method name="activateByTitle">
+  <interface name="io.github.jieran233.GetAllTitlesOfWindows">
+    <method name="getWindowsByTitle">
       <arg name="fullTitle" type="s" direction="in" />
-      <arg name="found" type="b" direction="out" />
+      <arg name="windows" type="as" direction="out" />
     </method>
-    <method name="activateByPrefix">
+    <method name="getWindowsByPrefix">
       <arg name="prefix" type="s" direction="in" />
-      <arg name="found" type="b" direction="out" />
+      <arg name="windows" type="as" direction="out" />
     </method>
-    <method name="activateBySuffix">
+    <method name="getWindowsBySuffix">
       <arg name="suffix" type="s" direction="in" />
-      <arg name="found" type="b" direction="out" />
+      <arg name="windows" type="as" direction="out" />
     </method>
-    <method name="activateBySubstring">
+    <method name="getWindowsBySubstring">
       <arg name="substring" type="s" direction="in" />
-      <arg name="found" type="b" direction="out" />
+      <arg name="windows" type="as" direction="out" />
     </method>
-    <method name="activateByWmClass">
+    <method name="getWindowsByWmClass">
       <arg name="name" type="s" direction="in" />
-      <arg name="found" type="b" direction="out" />
+      <arg name="windows" type="as" direction="out" />
     </method>
-    <method name="activateByWmClassInstance">
+    <method name="getWindowsByWmClassInstance">
       <arg name="instance" type="s" direction="in" />
-      <arg name="found" type="b" direction="out" />
+      <arg name="windows" type="as" direction="out" />
     </method>
   </interface>
 </node>
@@ -54,12 +54,12 @@ export default class ActivateWindowByTitle {
 
     enable() {
         this.#dbus = Gio.DBusExportedObject.wrapJSObject(
-            ActivateWindowByTitleInterface,
+            GetAllTitlesOfWindowsInterface,
             this,
         );
         this.#dbus.export(
             Gio.DBus.session,
-            '/de/lucaswerkmeister/ActivateWindowByTitle',
+            '/io/github/jieran233/GetAllTitlesOfWindows',
         );
     }
 
@@ -70,33 +70,19 @@ export default class ActivateWindowByTitle {
         this.#dbus = undefined;
     }
 
-    /**
-     * @param {MetaWindow} window
-     * @see https://gnome.pages.gitlab.gnome.org/mutter/meta/class.Window.html
-     */
-    #activate(window) {
-        const now = global.get_current_time();
-        const workspace = window.get_workspace();
-        if (workspace) {
-            workspace.activate_with_focus(window, now);
-        } else {
-            window.activate(now);
-        }
-    }
-
-    #activateByPredicate(predicate) {
+    #getWindowsByPredicate(predicate) {
+        const windows = [];
         for (const actor of global.get_window_actors()) {
             const window = actor.get_meta_window();
             if (predicate(window)) {
-                this.#activate(window);
-                return true;
+                windows.push(window.get_title());
             }
         }
-        return false;
+        return windows;
     }
 
-    #activateByTitlePredicate(predicate) {
-        return this.#activateByPredicate((window) => {
+    #getWindowsByTitlePredicate(predicate) {
+        return this.#getWindowsByPredicate((window) => {
             const title = window.get_title();
             if (title === null) {
                 return false;
@@ -105,42 +91,50 @@ export default class ActivateWindowByTitle {
         });
     }
 
-    activateByTitle(fullTitle) {
-        return this.#activateByTitlePredicate(
+    #getWindowsByWmClassPredicate(predicate) {
+        return this.#getWindowsByPredicate((window) => {
+            const wmClass = window.get_wm_class();
+            if (!wmClass) {
+                return false;
+            }
+            const [className, instance] = wmClass;
+            return predicate(className);
+        });
+    }
+
+    getWindowsByTitle(fullTitle) {
+        return this.#getWindowsByTitlePredicate(
             (title) => title === fullTitle,
         );
     }
 
-    activateByPrefix(prefix) {
-        return this.#activateByTitlePredicate(
+    getWindowsByPrefix(prefix) {
+        return this.#getWindowsByTitlePredicate(
             (title) => title.startsWith(prefix),
         );
     }
 
-    activateBySuffix(suffix) {
-        return this.#activateByTitlePredicate(
+    getWindowsBySuffix(suffix) {
+        return this.#getWindowsByTitlePredicate(
             (title) => title.endsWith(suffix),
         );
     }
 
-    activateBySubstring(substring) {
-        return this.#activateByTitlePredicate(
+    getWindowsBySubstring(substring) {
+        return this.#getWindowsByTitlePredicate(
             (title) => title.includes(substring),
         );
     }
 
-    // note: we don’t offer activateByRegExp,
-    // because that would be vulnerable to ReDoS attacks
-
-    activateByWmClass(name) {
-        return this.#activateByPredicate(
-            (window) => window.get_wm_class() === name,
+    getWindowsByWmClass(name) {
+        return this.#getWindowsByWmClassPredicate(
+            (className) => className === name,
         );
     }
 
-    activateByWmClassInstance(instance) {
-        return this.#activateByPredicate(
-            (window) => window.get_wm_class_instance() === instance,
+    getWindowsByWmClassInstance(instance) {
+        return this.#getWindowsByWmClassPredicate(
+            (className) => className === instance,
         );
     }
 }
