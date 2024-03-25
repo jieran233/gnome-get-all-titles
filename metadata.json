@@ -2,9 +2,10 @@
   "uuid": "gnome-get-all-titles@jieran233.github.io",
   "name": "Get All Titles of Windows",
   "description": "Expose a D-Bus interface to activate a window by its title or WM_CLASS. Forked from https://github.com/lucaswerkmeister/activate-window-by-title",
-  "version": 7,
+  "version": 8,
   "shell-version": [
-    "45"
+    "45",
+    "46"
   ],
   "url": "https://github.com/jieran233/gnome-get-all-titles"
 }
